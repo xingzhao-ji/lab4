@@ -18,6 +18,7 @@ SLIST_HEAD(list_head, list_entry);
 struct hash_table_entry {
 	struct list_head list_head;
 	pthread_mutex_t entry_mutex;  // per bucket mutex
+	char padding[64];  // prevent false sharing
 };
 
 struct hash_table_v2 {
