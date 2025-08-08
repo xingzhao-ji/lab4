@@ -18,7 +18,6 @@ SLIST_HEAD(list_head, list_entry);
 struct hash_table_entry {
 	struct list_head list_head;
 	pthread_mutex_t entry_mutex;  // per bucket mutex
-	char padding[64];  // prevent false sharing
 };
 
 struct hash_table_v2 {
@@ -33,7 +32,10 @@ struct hash_table_v2 *hash_table_v2_create()
 		struct hash_table_entry *entry = &hash_table->entries[i];
 		SLIST_INIT(&entry->list_head);
 		// initialize mutex for each entry
-		pthread_mutex_init(&entry->entry_mutex, NULL);
+		int err = pthread_mutex_init(&entry->entry_mutex, NULL);
+		if (err != 0) {
+			exit(err);
+		}
 	}
 	return hash_table;
 }
@@ -121,7 +123,10 @@ void hash_table_v2_destroy(struct hash_table_v2 *hash_table)
 			free(list_entry);
 		}
 		// destroy mutexes
-		pthread_mutex_destroy(&entry->entry_mutex);
+		int err = pthread_mutex_destroy(&entry->entry_mutex);
+		if (err != 0) {
+			exit(err);
+		}
 	}
 	free(hash_table);
 }
