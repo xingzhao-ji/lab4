@@ -23,7 +23,7 @@ struct hash_table_entry {
 
 struct hash_table_v1 {
 	struct hash_table_entry entries[HASH_TABLE_CAPACITY];
-	pthread_mutex_t mutex;  // added mutex
+	pthread_mutex_t mutex;  //added mutex
 };
 
 struct hash_table_v1 *hash_table_v1_create()
@@ -34,7 +34,7 @@ struct hash_table_v1 *hash_table_v1_create()
 		struct hash_table_entry *entry = &hash_table->entries[i];
 		SLIST_INIT(&entry->list_head);
 	}
-	// init the mutex
+	//init the mutex
 	FATAL_ON_ERR(pthread_mutex_init(&hash_table->mutex, NULL));
 	return hash_table;
 }
@@ -77,7 +77,7 @@ void hash_table_v1_add_entry(struct hash_table_v1 *hash_table,
                              const char *key,
                              uint32_t value)
 {
-	// lock it
+	//lock it
 	FATAL_ON_ERR(pthread_mutex_lock(&hash_table->mutex));
 	
 	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
@@ -123,3 +123,4 @@ void hash_table_v1_destroy(struct hash_table_v1 *hash_table)
 	FATAL_ON_ERR(pthread_mutex_destroy(&hash_table->mutex));
 	free(hash_table);
 }
+
