@@ -19,8 +19,8 @@ SLIST_HEAD(list_head, list_entry);
 
 struct hash_table_entry {
 	struct list_head list_head;
-	pthread_mutex_t entry_mutex;  // per bucket mutex
-	char padding[64];  // prevent false sharing
+	pthread_mutex_t entry_mutex;  //per bucket mutex
+	char padding[64];  //prevent false sharing
 };
 
 struct hash_table_v2 {
@@ -80,7 +80,7 @@ void hash_table_v2_add_entry(struct hash_table_v2 *hash_table,
 {
 	struct hash_table_entry *hash_table_entry = get_hash_table_entry(hash_table, key);
 	
-	// lock this bucket
+	//lock this bucket
 	FATAL_ON_ERR(pthread_mutex_lock(&hash_table_entry->entry_mutex));
 	
 	struct list_head *list_head = &hash_table_entry->list_head;
@@ -122,8 +122,9 @@ void hash_table_v2_destroy(struct hash_table_v2 *hash_table)
 			SLIST_REMOVE_HEAD(list_head, pointers);
 			free(list_entry);
 		}
-		// destroy mutexes
+		//destroy mutexes
 		FATAL_ON_ERR(pthread_mutex_destroy(&entry->entry_mutex));
 	}
 	free(hash_table);
 }
+
