@@ -59,7 +59,7 @@ $./hash-table-tester -t 8 -s 50000
 Hash table base: 236,728 usec
 Hash table v1: 674,478 usec
 ```
-Version 1 is slower than the base by ~2.85x (674,478 µs / 236,728 µs). The table-wide mutex permits only one insertion at a time, so worker threads mostly wait. Per-insert lock and unlock add overhead, and the multi-threaded configuration pays thread scheduling and context-switch costs without gaining parallelism.
+Version 1 is ~2.85x slower than the base (674,478 usec / 236,728 usec). The table-wide mutex permits only one insertion at a time, so worker threads mostly wait. Per-insert lock and unlock add overhead, and the multi-threaded configuration pays thread scheduling and context-switch costs without gaining parallelism.
 
 ## Second Implementation
 In the `hash_table_v2_add_entry` function, I added a `pthread_mutex_t` to each bucket, replacing the table-wide lock. With per-bucket locking, operations on different buckets proceed in parallel, and threads contend only when they access the same bucket.
@@ -79,15 +79,16 @@ Hash table base: 67,602 usec
 Hash table v2: 16,443 usec
 ```
 
-Version 2 is faster than the base ~3.78x (236,728 µs / 62,701 µs). The gain comes from allowing threads to operate on different buckets concurrently rather than waiting behind a single lock.
+Version 2 is about ~3.78x faster than the base (236,728 usec / 62,701 usec). The increase of speed is due to allowing threads to operate on different buckets concurrently rather than waiting behind a single lock.
 
-I added 64-byte padding after each bucket’s mutex so two buckets do not occupy the same 64-byte memory block. This separation avoids slowdowns where frequent updates to one bucket also affect a neighboring bucket that happens to share the same block.
+I also added 64-byte padding after each bucket’s mutex to avoid false sharing. 
 
 ## Cleaning up
 To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
 
