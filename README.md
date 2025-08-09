@@ -49,7 +49,7 @@ Hash table v2: 16,443 usec
 ## First Implementation
 In the `hash_table_v1_add_entry` function, I added a single pthread_mutex_t guarding the entire hash table; each add_entry call acquires the lock, performs the insertion in the target bucket, and releases the lock before returning.
 
-I also added `pthread_mutex_t mutex` member to the hash table structure, initialized it in the create routine, and bracketed add_entry with pthread_mutex_lock/pthread_mutex_unlock to enforce mutual exclusion.
+I also added `pthread_mutex_t mutex` member to the hash table structure, initialized it in the create routine, and added lock/unlock calls around add_entry for mutual exclusion.
 
 We can guarantee the correctness because the mutex makes sure only one thread can modify the table at a time.
 
@@ -86,6 +86,7 @@ To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
 
