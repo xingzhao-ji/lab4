@@ -47,11 +47,11 @@ Hash table v2: 16,443 usec
 ```
 
 ## First Implementation
-In the `hash_table_v1_add_entry` function, I added a single mutex to protect the entire hash table. Basically, I just put one big lock on the whole thing - whenever any thread wants to add something, it has to grab the lock first, do its work, then release it.
+In the `hash_table_v1_add_entry` function, I added a single pthread_mutex_t guarding the entire hash table; each add_entry call acquires the lock, performs the insertion in the target bucket, and releases the lock before returning.
 
-I also added `pthread_mutex_t mutex` field to the hash table struct, initialized it in the create function, and then wrapped the entire add_entry function with lock/unlock calls.
+I also added `pthread_mutex_t mutex` member to the hash table structure, initialized it in the create routine, and bracketed add_entry with pthread_mutex_lock/pthread_mutex_unlock to enforce mutual exclusion.
 
-This works correctly because only one thread can touch the hash table at a time. When a thread grabs the mutex, everyone else has to wait their turn. This prevents any race conditions since threads can't accidentally overwrite each other's work.
+We can guarantee the correctness because the table-wide mutex is acquired at the start of `hash_table_v1_add_entry` and released on every exit path. While the lock is held, one thread computes the bucket, walks the list, and updates or inserts the entry, so no two threads modify the table at the same time. The mutex is initialized in `hash_table_v1_create` and destroyed in `hash_table_v1_destroy`.
 
 ### Performance
 ```shell
@@ -59,39 +59,36 @@ $./hash-table-tester -t 8 -s 50000
 Hash table base: 236,728 usec
 Hash table v1: 674,478 usec
 ```
-Version 1 is about 2.85x slower than the base version. This makes sense since it's actually slower than single-threaded. The main problems are thread creation overhead where we waste time creating and managing threads, everyone waiting for one lock since all threads line up for the same mutex so no actual parallelism happens, context switching as the OS keeps swapping between threads that are mostly just waiting, and lock overhead from getting and releasing the mutex. We essentially get all the downsides of threading (overhead from creating threads, context switches, lock management) with none of the benefits since everything still runs one at a time.
+Version 1 is slower than the base by ~2.85× (674,478 µs / 236,728 µs). The table-wide mutex permits only one insertion at a time, so worker threads mostly wait. Per-insert lock and unlock add overhead, and the multi-threaded configuration pays thread scheduling and context-switch costs without gaining parallelism.
 
 ## Second Implementation
-In the `hash_table_v2_add_entry` function, instead of one giant lock for everything, I gave each bucket in the hash table its own mutex. This way, threads only block each other if they're trying to access the exact same bucket.
+In the `hash_table_v2_add_entry` function, I added a `pthread_mutex_t` to each bucket, replacing the table-wide lock. With per-bucket locking, operations on different buckets proceed in parallel, and threads contend only when they access the same bucket.
 
-Each hash table entry now has its own `pthread_mutex_t entry_mutex`. I also added 64 bytes of padding after each mutex to prevent different CPUs fight over cache lines. In the add_entry function, I only lock the specific bucket we're working on, not the whole table.
+I added a `pthread_mutex_t entry_mutex` to each bucket and 64 bytes of padding after the mutex so two buckets do not sit in the same 64-byte memory block. This keeps updates to different buckets from slowing each other down. In `hash_table_v2_add_entry`, only the target bucket’s mutex is locked and no table wide lock is used.
 
-This works correctly because each bucket gets its own lock. If thread A needs bucket 5 and thread B needs bucket 100, they can both work at the same time since they're using different mutexes. They only have to wait if they both want the same bucket, but with 4096 buckets and a decent hash function, this doesn't happen too often.
+This works because each bucket has its own lock. Operations on different buckets run at the same time; only operations targeting the same bucket wait for one another. With 4,096 buckets (for example, 50,000 inserts ≈ 12 per bucket on average), simultaneous requests for the same bucket are relatively infrequent, so waiting is much lower than with a single table-wide lock.
 
 ### Performance
 ```shell
 $./hash-table-tester -t 8 -s 50000
 Hash table base: 236,728 usec
 Hash table v2: 62,701 usec
-  - Speedup: 3.77x faster than base
-  - 10.76x faster than v1
 
 $./hash-table-tester -t 4 -s 50000
 Hash table base: 67,602 usec
 Hash table v2: 16,443 usec
-  - Speedup: 4.11x faster than base
-  - 12.57x faster than v1
 ```
 
-Version 2 is much faster. With 8 threads, we get about a 3.77x speedup over the base implementation. Now we're actually using multiple cores properly since different threads can insert into different buckets at the same time.
+Version 2 is faster than the base ~3.78x (236,728 µs / 62,701 µs). The gain comes from allowing threads to operate on different buckets concurrently rather than waiting behind a single lock.
 
-The padding I added prevents false sharing, which is when different CPU cores mess up each other's caches even though they're working on different data. Without the padding, threads would constantly invalidate each other's cache lines and performance would tank.
+I added 64-byte padding after each bucket’s mutex so two buckets do not occupy the same 64-byte memory block. This separation avoids slowdowns where frequent updates to one bucket also affect a neighboring bucket that happens to share the same block.
 
 ## Cleaning up
 To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
 
