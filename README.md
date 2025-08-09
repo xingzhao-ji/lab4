@@ -1,14 +1,13 @@
 # Hash Hash Hash
-A concurrent hash table implementation with two different locking strategies to ensure thread safety while maintaining performance.
+This lab compares different hash table implementations and analyzes their performance in terms of execution time and accuracy across single-threaded, single-mutex multi-threaded, and multiple-mutex multi-threaded approaches.
 
 ## Building
 Run this command in the same directory where the Makefile is located to build:
 ```shell
 make
 ```
-
 ## Running
-1. Run the tester with a thread count and total inserts (example: 8 threads, 50k inserts):
+1. Run the tester with a thread count and total inserts (example: 8 threads, 50000 inserts):
 ```shell
 ./hash-table-tester -t 8 -s 50000
 ```
@@ -17,7 +16,7 @@ make
 ./hash-table-tester -t 8 -s 40000
 ./hash-table-tester -t 4 -s 50000
 ```
-3. Results (sample outputs running on 8 GPU core machine):
+3. Results (example outputs running on my 8 GPU core machine):
 ```shell
 $./hash-table-tester -t 8 -s 50000
 Generation: 52,087 usec
@@ -93,5 +92,6 @@ To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
