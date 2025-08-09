@@ -59,12 +59,12 @@ $./hash-table-tester -t 8 -s 50000
 Hash table base: 236,728 usec
 Hash table v1: 674,478 usec
 ```
-Version 1 is ~2.85x slower than the base (674,478 usec / 236,728 usec). Version 1 is slower because of thread creation overhead and threads wait for each other instead of working in parallel. 
+Version 1 is about 3x slower than base. This happens because we have thread creation overhead but then all threads just wait at the same mutex anyway, so we don't get any parallelism.
 
 ## Second Implementation
 In the `hash_table_v2_add_entry` function, I added a `pthread_mutex_t` to each bucket, replacing the table-wide lock. With per-bucket locking, operations on different buckets proceed in parallel, and threads contend only when they access the same bucket.
 
-I added a `pthread_mutex_t entry_mutex` to each bucket and 64 bytes of padding after the mutex so two buckets do not sit in the same 64-byte memory block. This keeps updates to different buckets from slowing each other down. In `hash_table_v2_add_entry`, only the target bucket’s mutex is locked and no table wide lock is used.
+I added a `pthread_mutex_t entry_mutex` to each bucket and 64 bytes of padding after the mutex to prevent false sharing between buckets. This keeps updates to different buckets from slowing each other down. In `hash_table_v2_add_entry`, only the target bucket’s mutex is locked and no table wide lock is used.
 
 This works because each bucket has its own lock. Operations on different buckets run at the same time; only operations targeting the same bucket wait for one another. 
 
@@ -79,15 +79,14 @@ Hash table base: 67,602 usec
 Hash table v2: 16,443 usec
 ```
 
-Version 2 is about ~3.78x faster than the base (236,728 usec / 62,701 usec). The increase of speed is due to allowing threads to operate on different buckets concurrently rather than waiting behind a single lock.
-
-I also added 64-byte padding after each bucket’s mutex to avoid false sharing. 
+Version 2 is around 3-4x faster than base. Now threads can actually work in parallel since different buckets have different locks.
 
 ## Cleaning up
 To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
 
