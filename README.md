@@ -59,7 +59,7 @@ $./hash-table-tester -t 8 -s 50000
 Hash table base: 236,728 usec
 Hash table v1: 674,478 usec
 ```
-Version 1 is ~2.85x slower than the base (674,478 usec / 236,728 usec). The table-wide mutex permits only one insertion at a time, so worker threads mostly wait. Per-insert lock and unlock add overhead, and the multi-threaded configuration pays thread scheduling and context-switch costs without gaining parallelism.
+Version 1 is ~2.85x slower than the base (674,478 usec / 236,728 usec). Version 1 is slower because of thread creation overhead and threads wait for each other instead of working in paralle
 
 ## Second Implementation
 In the `hash_table_v2_add_entry` function, I added a `pthread_mutex_t` to each bucket, replacing the table-wide lock. With per-bucket locking, operations on different buckets proceed in parallel, and threads contend only when they access the same bucket.
@@ -88,6 +88,7 @@ To clean up and remove the executables created, use this command:
 ```shell
 make clean
 ```
+
 
 
 
